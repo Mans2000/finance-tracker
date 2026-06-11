@@ -532,6 +532,60 @@ function App(){
           </div>
         )}
 
+        {/* ── TAMBAH ── */}
+        {tab==="add"&&(
+          <div>
+            <div style={S.pageHeader}>
+              <h1 style={S.pageTitle}>{editId?"✏️ Edit Transaksi":"➕ Tambah Transaksi"}</h1>
+              {editId&&<button style={S.btnGhost} onClick={()=>{setEditId(null);setForm(f=>({...f,amount:"",description:"",date:today.toISOString().split("T")[0]}))}}>Batal Edit</button>}
+            </div>
+            <div style={{...S.card,maxWidth:540}}>
+              {/* Toggle */}
+              <div style={S.typeToggle}>
+                <button style={{...S.typeBtn,...(form.type==="income"?{background:"#064E3B",color:"#10B981"}:{})}}
+                  onClick={()=>setForm(f=>({...f,type:"income",category:CATEGORIES_INCOME[0].id}))}>
+                  💚 Pemasukan
+                </button>
+                <button style={{...S.typeBtn,...(form.type==="expense"?{background:"#451A03",color:"#F59E0B"}:{})}}
+                  onClick={()=>setForm(f=>({...f,type:"expense",category:CATEGORIES_EXPENSE[0].id}))}>
+                  🔴 Pengeluaran
+                </button>
+              </div>
+
+              <div style={S.formGroup}>
+                <label style={S.label}>Tanggal</label>
+                <input type="date" style={S.input} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Jumlah (Rp)</label>
+                <input type="number" placeholder="Contoh: 50000" style={S.input} value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))}/>
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Kategori</label>
+                <div style={S.catGrid}>
+                  {currentCats.map(c=>(
+                    <button key={c.id}
+                      style={{...S.catBtn,...(form.category===c.id?{background:c.color+"33",borderColor:c.color,color:"#E2E8F0"}:{})}}
+                      onClick={()=>setForm(f=>({...f,category:c.id}))}>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Deskripsi (opsional)</label>
+                <input type="text" placeholder="Contoh: Makan siang warung padang" style={S.input}
+                  value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}
+                  onKeyDown={e=>{if(e.key==="Enter")handleSubmit();}}/>
+              </div>
+              <button style={{...S.btnPrimary,width:"100%",background:form.type==="income"?"#059669":"#D97706"}} onClick={handleSubmit}>
+                {editId?"💾 Simpan Perubahan":"✅ Simpan Transaksi"}
+              </button>
+            </div>
+          </div>
+        )}
+
+
         {/* ── RIWAYAT ── */}
         {tab==="history"&&(
           <div>
