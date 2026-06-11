@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>💹 Finance Tracker</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#0A1628; color:#E2E8F0; }
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
+  input[type=date]::-webkit-calendar-picker-indicator { filter:invert(1) opacity(0.5); }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:#0A1628; }
+  ::-webkit-scrollbar-thumb { background:#1E3A5F; border-radius:3px; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+  @media(max-width:640px){
+    #sidebar { width:100%!important; flex-direction:row!important; padding:10px!important; border-right:none!important; border-bottom:1px solid #1E3A5F!important; }
+    #logo { display:none!important; }
+    #nav { flex-direction:row!important; gap:4px!important; overflow-x:auto; }
+    #sidebar-footer { display:none!important; }
+    #root > div { flex-direction:column!important; }
+    .main-content { max-width:100%!important; padding:16px!important; }
+    .card-grid-3 { grid-template-columns:1fr!important; }
+    .card-grid-2 { grid-template-columns:1fr!important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const CATEGORIES_EXPENSE = [
+  { id:"food",          label:"🍽️ Makan & Minum",      color:"#F59E0B" },
+  { id:"transport",     label:"🚗 Kendaraan",           color:"#3B82F6" },
+  { id:"shopping",      label:"🛍️ Belanja",             color:"#EC4899" },
+  { id:"health",        label:"🏥 Kesehatan",           color:"#10B981" },
+  { id:"entertainment", label:"🎮 Hiburan",             color:"#8B5CF6" },
+  { id:"education",     label:"📚 Pendidikan",          color:"#06B6D4" },
+  { id:"utilities",     label:"💡 Tagihan & Utilitas",  color:"#F97316" },
+  { id:"housing",       label:"🏠 Tempat Tinggal",      color:"#64748B" },
+  { id:"clothing",      label:"👕 Pakaian",             color:"#A78BFA" },
+  { id:"personal",      label:"💆 Perawatan Diri",      color:"#34D399" },
+  { id:"social",        label:"🤝 Sosial & Sedekah",    color:"#FBBF24" },
+  { id:"other_exp",     label:"📦 Lainnya",             color:"#94A3B8" },
+];
+
+const CATEGORIES_INCOME = [
+  { id:"salary",     label:"💼 Gaji",         color:"#10B981" },
+  { id:"freelance",  label:"💻 Freelance",    color:"#3B82F6" },
+  { id:"business",   label:"🏪 Bisnis",       color:"#F59E0B" },
+  { id:"investment", label:"📈 Investasi",    color:"#8B5CF6" },
+  { id:"gift",       label:"🎁 Hadiah/THR",   color:"#EC4899" },
+  { id:"rental",     label:"🏘️ Sewa",         color:"#06B6D4" },
+  { id:"other_inc",  label:"💰 Lainnya",      color:"#94A3B8" },
+];
+
+const MONTHS_ID = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+
+function formatRp(num) {
+  if (!num && num !== 0) return "Rp 0";
+  return "Rp " + Math.abs(num).toLocaleString("id-ID");
+}
+
+function getCategoryInfo(id, type) {
+  const list = type === "income" ? CATEGORIES_INCOME : CATEGORIES_EXPENSE;
+  return list.find(c => c.id === id) || { label: id, color: "#94A3B8" };
+}
+
+function DonutChart({ data, size = 180 }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total === 0) return (
+    <div style={{width:size,height:size,display:"flex",alignItems:"center",justifyContent:"center",color:"#64748B",fontSize:12,textAlign:"center"}}>
+      Tidak ada<br/>data
+    </div>
+  );
+  let cumAngle = -Math.PI / 2;
+  const cx = size/2, cy = size/2, r = size*0.38, ir = size*0.22;
+  const slices = data.filter(d=>d.value>0).map(d => {
+    const angle = (d.value/total)*2*Math.PI;
+    const x1=cx+r*Math.cos(cumAngle), y1=cy+r*Math.sin(cumAngle);
+    cumAngle += angle;
+    const x2=cx+r*Math.cos(cumAngle), y2=cy+r*Math.sin(cumAngle);
+    const ix1=cx+ir*Math.cos(cumAngle-angle), iy1=cy+ir*Math.sin(cumAngle-angle);
+    const ix2=cx+ir*Math.cos(cumAngle), iy2=cy+ir*Math.sin(cumAngle);
+    const large = angle > Math.PI ? 1 : 0;
+    return { ...d, pct:((d.value/total)*100).toFixed(1),
+      path:`M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L ${ix2.toFixed(1)} ${iy2.toFixed(1)} A ${ir} ${ir} 0 ${large} 0 ${ix1.toFixed(1)} ${iy1.toFixed(1)} Z`
+    };
+  });
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {slices.map((s,i)=>(
+        <path key={i} d={s.path} fill={s.color} opacity={0.92} stroke="#0F1629" strokeWidth={1.5}>
+          <title>{s.label}: {s.pct}%</title>
+        </path>
+      ))}
+      <text x={cx} y={cy-6} textAnchor="middle" fill="#E2E8F0" fontSize={11} fontWeight="600">Total</text>
+      <text x={cx} y={cy+10} textAnchor="middle" fill="#10B981" fontSize={9} fontWeight="700">{formatRp(total)}</text>
+    </svg>
+  );
+}
+
+function generatePDFReport(transactions, month, year) {
+  const filtered = transactions.filter(t => {
+    const d = new Date(t.date);
+    return d.getMonth()===month && d.getFullYear()===year;
+  });
+  const totalIncome  = filtered.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+  const totalExpense = filtered.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+  const balance = totalIncome - totalExpense;
+
+  const expCat={}, incCat={};
+  filtered.filter(t=>t.type==="expense").forEach(t=>{ expCat[t.category]=(expCat[t.category]||0)+t.amount; });
+  filtered.filter(t=>t.type==="income").forEach(t=>{ incCat[t.category]=(incCat[t.category]||0)+t.amount; });
+
+  const expArr = Object.entries(expCat).sort((a,b)=>b[1]-a[1]);
+  const incArr = Object.entries(incCat).sort((a,b)=>b[1]-a[1]);
+
+  function pct(v,t){ return t>0?((v/t)*100).toFixed(1):"0.0"; }
+
+  function buildSVG(dataArr, total, size=160){
+    if(!total) return `<svg width="${size}" height="${size}"><text x="${size/2}" y="${size/2}" text-anchor="middle" fill="#999" font-size="12">Tidak ada data</text></svg>`;
+    let cum=-Math.PI/2;
+    const cx=size/2,cy=size/2,r=size*0.38,ir=size*0.22;
+    let paths="";
+    dataArr.forEach(([catId,val])=>{
+      const allInc=["salary","freelance","business","investment","gift","rental","other_inc"];
+      const info=getCategoryInfo(catId, allInc.includes(catId)?"income":"expense");
+      const angle=(val/total)*2*Math.PI;
+      const x1=cx+r*Math.cos(cum),y1=cy+r*Math.sin(cum);
+      cum+=angle;
+      const x2=cx+r*Math.cos(cum),y2=cy+r*Math.sin(cum);
+      const ix1=cx+ir*Math.cos(cum-angle),iy1=cy+ir*Math.sin(cum-angle);
+      const ix2=cx+ir*Math.cos(cum),iy2=cy+ir*Math.sin(cum);
+      const lg=angle>Math.PI?1:0;
+      paths+=`<path d="M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${lg} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L ${ix2.toFixed(1)} ${iy2.toFixed(1)} A ${ir} ${ir} 0 ${lg} 0 ${ix1.toFixed(1)} ${iy1.toFixed(1)} Z" fill="${info.color}" stroke="white" stroke-width="1.5"/>`;
+    });
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}</svg>`;
+  }
+
+  function buildRows(arr,total,type){
+    return arr.map(([catId,val])=>{
+      const info=getCategoryInfo(catId,type);
+      const p=pct(val,total);
+      return `<tr>
+        <td style="padding:7px 10px;font-size:13px;">${info.label}</td>
+        <td style="padding:7px 10px;font-size:13px;text-align:right;font-weight:600;">${formatRp(val)}</td>
+        <td style="padding:7px 10px;width:220px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;background:#E2E8F0;border-radius:4px;height:10px;">
+              <div style="width:${p}%;background:${info.color};height:10px;border-radius:4px;"></div>
+            </div>
+            <span style="font-size:12px;color:#555;min-width:40px;font-weight:600;">${p}%</span>
+          </div>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  const txRows = [...filtered].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,50).map(t=>{
+    const info=getCategoryInfo(t.category,t.type);
+    return `<tr>
+      <td style="padding:5px 8px;font-size:12px;">${new Date(t.date).toLocaleDateString("id-ID")}</td>
+      <td style="padding:5px 8px;font-size:12px;">${info.label}</td>
+      <td style="padding:5px 8px;font-size:12px;">${t.description||"—"}</td>
+      <td style="padding:5px 8px;font-size:12px;text-align:right;color:${t.type==="income"?"#059669":"#DC2626"};font-weight:700;">${t.type==="income"?"+":"−"}${formatRp(t.amount)}</td>
+    </tr>`;
+  }).join("");
+
+  const html=`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"/>
+<title>Laporan Keuangan ${MONTHS_ID[month]} ${year}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#fff;color:#1e293b;padding:36px;font-size:14px}
+.header{text-align:center;border-bottom:3px solid #0F1629;padding-bottom:20px;margin-bottom:28px}
+.header h1{font-size:26px;color:#0F1629;font-weight:700;margin-bottom:4px}
+.header p{color:#64748B;font-size:13px}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px}
+.s-card{border-radius:8px;padding:18px;text-align:center}
+.s-green{background:#ECFDF5;border:2px solid #10B981}
+.s-red{background:#FEF2F2;border:2px solid #EF4444}
+.s-blue{background:#EFF6FF;border:2px solid #3B82F6}
+.s-label{font-size:12px;color:#64748B;margin-bottom:6px;font-weight:500}
+.s-value{font-size:20px;font-weight:700}
+.section-title{font-size:16px;font-weight:700;color:#0F1629;margin:28px 0 14px;padding-left:10px;border-left:4px solid #10B981}
+.chart-wrap{display:flex;gap:28px;align-items:flex-start;margin-bottom:28px}
+table{width:100%;border-collapse:collapse}
+th{background:#0F1629;color:white;padding:9px 10px;font-size:12px;text-align:left}
+td{border-bottom:1px solid #F1F5F9}
+tr:nth-child(even) td{background:#F8FAFC}
+.footer{margin-top:36px;text-align:center;color:#94A3B8;font-size:11px;border-top:1px solid #E2E8F0;padding-top:14px}
+@media print{body{padding:16px}}
+</style></head><body>
+<div class="header">
+  <h1>📊 Laporan Keuangan Bulanan</h1>
+  <p>${MONTHS_ID[month]} ${year} &nbsp;·&nbsp; Dicetak ${new Date().toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
+</div>
+<div class="summary">
+  <div class="s-card s-green"><div class="s-label">Total Pemasukan</div><div class="s-value" style="color:#059669">${formatRp(totalIncome)}</div></div>
+  <div class="s-card s-red"><div class="s-label">Total Pengeluaran</div><div class="s-value" style="color:#DC2626">${formatRp(totalExpense)}</div></div>
+  <div class="s-card s-blue"><div class="s-label">Saldo Bersih</div><div class="s-value" style="color:${balance>=0?"#2563EB":"#DC2626"}">${balance>=0?"+":""}${formatRp(balance)}</div></div>
+</div>
+<div class="section-title">🔴 Pengeluaran per Kategori</div>
+<div class="chart-wrap">
+  <div>${buildSVG(expArr,totalExpense)}</div>
+  <div style="flex:1"><table><thead><tr><th>Kategori</th><th style="text-align:right">Jumlah</th><th>Persentase</th></tr></thead><tbody>${buildRows(expArr,totalExpense,"expense")}</tbody></table></div>
+</div>
+<div class="section-title">💚 Pemasukan per Kategori</div>
+<div class="chart-wrap">
+  <div>${buildSVG(incArr,totalIncome)}</div>
+  <div style="flex:1"><table><thead><tr><th>Kategori</th><th style="text-align:right">Jumlah</th><th>Persentase</th></tr></thead><tbody>${buildRows(incArr,totalIncome,"income")}</tbody></table></div>
+</div>
+<div class="section-title">📋 Rincian Transaksi</div>
+<table><thead><tr><th>Tanggal</th><th>Kategori</th><th>Deskripsi</th><th style="text-align:right">Jumlah</th></tr></thead><tbody>${txRows}</tbody></table>
+<div class="footer">Laporan dibuat otomatis oleh Finance Tracker &nbsp;·&nbsp; ${new Date().toLocaleString("id-ID")}</div>
+</body></html>`;
+
+  const win=window.open("","_blank");
+  win.document.write(html);
+  win.document.close();
+  setTimeout(()=>win.print(),700);
+}
+
+
+
+// ── STYLES ──────────────────────────────────────────
+const S = {
+  root:{display:"flex",minHeight:"100vh",background:"#0A1628"},
+  sidebar:{width:220,background:"#0F1E35",display:"flex",flexDirection:"column",padding:"20px 12px",borderRight:"1px solid #1E3A5F",flexShrink:0},
+  logo:{display:"flex",alignItems:"center",gap:10,padding:"0 8px 20px",borderBottom:"1px solid #1E3A5F",marginBottom:16},
+  logoText:{fontSize:15,fontWeight:700,color:"#E2E8F0",letterSpacing:"-0.3px"},
+  nav:{display:"flex",flexDirection:"column",gap:4,flex:1},
+  navBtn:{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:8,border:"none",background:"transparent",color:"#94A3B8",cursor:"pointer",fontSize:13,fontWeight:500,width:"100%",textAlign:"left"},
+  navBtnActive:{background:"#1E3A5F",color:"#E2E8F0",fontWeight:600},
+  sfooter:{padding:"12px 8px 0",borderTop:"1px solid #1E3A5F",marginTop:16},
+  main:{flex:1,padding:"24px 28px",overflowY:"auto",position:"relative"},
+  pageHeader:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:12},
+  pageTitle:{fontSize:20,fontWeight:700,color:"#F1F5F9",margin:0},
+  card:{background:"#112032",border:"1px solid #1E3A5F",borderRadius:12,padding:"18px 20px",marginBottom:16},
+  cardLabel:{fontSize:12,color:"#64748B",marginBottom:4},
+  cardValue:{fontSize:22,fontWeight:700,marginBottom:4},
+  cardSub:{fontSize:11,color:"#475569"},
+  sectionTitle:{fontSize:14,fontWeight:700,color:"#CBD5E1",marginBottom:14},
+  txRow:{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #1E293B"},
+  select:{background:"#1E2D4A",border:"1px solid #2D4A6E",color:"#CBD5E1",borderRadius:6,padding:"6px 10px",fontSize:13,cursor:"pointer"},
+  input:{width:"100%",background:"#0F1E35",border:"1px solid #2D4A6E",borderRadius:8,padding:"10px 12px",color:"#E2E8F0",fontSize:14,outline:"none",boxSizing:"border-box"},
+  label:{display:"block",fontSize:12,color:"#94A3B8",marginBottom:6,fontWeight:500},
+  formGroup:{marginBottom:16},
+  typeToggle:{display:"flex",background:"#0A1628",borderRadius:8,padding:3,marginBottom:20,gap:2},
+  typeBtn:{flex:1,padding:"9px",borderRadius:6,border:"none",background:"transparent",color:"#64748B",cursor:"pointer",fontSize:13,fontWeight:600},
+  catGrid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:6},
+  catBtn:{padding:"7px 10px",borderRadius:6,border:"1px solid #2D4A6E",background:"#0F1E35",color:"#94A3B8",cursor:"pointer",fontSize:11,fontWeight:500,textAlign:"left"},
+  btnPrimary:{background:"#059669",border:"none",color:"white",borderRadius:8,padding:"11px 20px",fontSize:14,fontWeight:600,cursor:"pointer"},
+  btnGhost:{background:"transparent",border:"1px solid #2D4A6E",color:"#94A3B8",borderRadius:8,padding:"8px 16px",fontSize:13,cursor:"pointer"},
+  btnDanger:{background:"#EF4444",border:"none",color:"white",borderRadius:8,padding:"8px 20px",fontSize:13,fontWeight:600,cursor:"pointer"},
+  btnIconEdit:{background:"#1E3A5F",border:"none",borderRadius:4,padding:"3px 7px",cursor:"pointer",fontSize:11},
+  btnIconDel:{background:"#3F1515",border:"none",borderRadius:4,padding:"3px 7px",cursor:"pointer",fontSize:11},
+  overlay:{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100},
+  modal:{background:"#112032",border:"1px solid #1E3A5F",borderRadius:12,padding:28,textAlign:"center",maxWidth:320},
+  toast:{position:"fixed",top:20,right:20,color:"white",padding:"10px 18px",borderRadius:8,fontSize:13,fontWeight:600,zIndex:200,boxShadow:"0 4px 20px rgba(0,0,0,0.4)",animation:"fadeIn .2s"},
+};
+
+// ── MAIN APP ──────────────────────────────────────────
+function App(){
+  const today = new Date();
+  const [transactions, setTransactions] = useState(()=>{
+    try{ const s=localStorage.getItem("ft_v2"); return s?JSON.parse(s):[]; }catch{return [];}
+  });
+  const [tab, setTab] = useState("dashboard");
+  const [form, setForm] = useState({type:"expense",amount:"",category:"food",description:"",date:today.toISOString().split("T")[0]});
+  const [filterMonth, setFilterMonth] = useState(today.getMonth());
+  const [filterYear, setFilterYear] = useState(today.getFullYear());
+  const [reportMonth, setReportMonth] = useState(today.getMonth());
+  const [reportYear, setReportYear] = useState(today.getFullYear());
+  const [editId, setEditId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [delId, setDelId] = useState(null);
+
+  useEffect(()=>{ try{localStorage.setItem("ft_v2",JSON.stringify(transactions));}catch{} },[transactions]);
+
+  function showToast(msg,type="success"){
+    setToast({msg,type});
+    setTimeout(()=>setToast(null),2800);
+  }
+
+  const monthTx = transactions.filter(t=>{
+    const d=new Date(t.date);
+    return d.getMonth()===filterMonth && d.getFullYear()===filterYear;
+  });
+  const totalIncome  = monthTx.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+  const totalExpense = monthTx.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+  const balance = totalIncome - totalExpense;
+
+  const expCatMap={}, incCatMap={};
+  monthTx.filter(t=>t.type==="expense").forEach(t=>{ expCatMap[t.category]=(expCatMap[t.category]||0)+t.amount; });
+  monthTx.filter(t=>t.type==="income").forEach(t=>{ incCatMap[t.category]=(incCatMap[t.category]||0)+t.amount; });
+  const expCatData = Object.entries(expCatMap).map(([id,value])=>({id,value,...getCategoryInfo(id,"expense")})).sort((a,b)=>b.value-a.value);
+  const incCatData = Object.entries(incCatMap).map(([id,value])=>({id,value,...getCategoryInfo(id,"income")})).sort((a,b)=>b.value-a.value);
+
+  const allYears=[...new Set(transactions.map(t=>new Date(t.date).getFullYear()))].sort((a,b)=>b-a);
+  if(!allYears.includes(filterYear)) allYears.unshift(filterYear);
+  if(!allYears.includes(today.getFullYear())) allYears.unshift(today.getFullYear());
+
+  function handleSubmit(){
+    if(!form.amount||isNaN(+form.amount)||+form.amount<=0){showToast("Masukkan jumlah yang valid!","error");return;}
+    if(!form.date){showToast("Pilih tanggal!","error");return;}
+    if(editId){
+      setTransactions(prev=>prev.map(t=>t.id===editId?{...t,...form,amount:+form.amount}:t));
+      setEditId(null); showToast("Transaksi diperbarui ✓");
+    } else {
+      setTransactions(prev=>[...prev,{...form,amount:+form.amount,id:Date.now()}]);
+      showToast("Transaksi ditambahkan ✓");
+    }
+    setForm(f=>({...f,amount:"",description:"",date:today.toISOString().split("T")[0]}));
+  }
+
+  function startEdit(t){
+    setForm({type:t.type,amount:String(t.amount),category:t.category,description:t.description||"",date:t.date});
+    setEditId(t.id); setTab("add");
+  }
+
+  const currentCats = form.type==="income" ? CATEGORIES_INCOME : CATEGORIES_EXPENSE;
+  const recent = [...transactions].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,6);
+
+  const NAV = [
+    {id:"dashboard",icon:"📊",label:"Dashboard"},
+    {id:"add",icon:"➕",label:"Tambah"},
+    {id:"history",icon:"📋",label:"Riwayat"},
+    {id:"report",icon:"📄",label:"Laporan PDF"},
+  ];
+
+  return (
+    <div style={S.root}>
+      {/* SIDEBAR */}
+      <aside id="sidebar" style={S.sidebar}>
+        <div id="logo" style={S.logo}>
+          <span style={{fontSize:22}}>💹</span>
+          <span style={S.logoText}>FinanceTracker</span>
+        </div>
+        <nav id="nav" style={S.nav}>
+          {NAV.map(item=>(
+            <button key={item.id}
+              style={{...S.navBtn,...(tab===item.id?S.navBtnActive:{})}}
+              onClick={()=>{setTab(item.id);if(editId&&item.id!=="add"){setEditId(null);setForm(f=>({...f,amount:"",description:""}));}}}>
+              <span style={{fontSize:16}}>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div id="sidebar-footer" style={S.sfooter}>
+          <div style={{fontSize:10,color:"#475569"}}>Data tersimpan di browser</div>
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <main className="main-content" style={S.main}>
+
+        {/* Toast */}
+        {toast&&(
+          <div style={{...S.toast,background:toast.type==="error"?"#EF4444":toast.type==="info"?"#3B82F6":"#10B981"}}>
+            {toast.type==="error"?"❌":toast.type==="info"?"ℹ️":"✅"} {toast.msg}
+          </div>
+        )}
+
+        {/* Delete Confirm */}
+        {delId&&(
+          <div style={S.overlay}>
+            <div style={S.modal}>
+              <div style={{fontSize:36,marginBottom:12}}>🗑️</div>
+              <h3 style={{color:"#E2E8F0",marginBottom:8}}>Hapus Transaksi?</h3>
+              <p style={{color:"#94A3B8",fontSize:13,marginBottom:20}}>Tindakan ini tidak bisa dibatalkan.</p>
+              <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+                <button style={S.btnGhost} onClick={()=>setDelId(null)}>Batal</button>
+                <button style={S.btnDanger} onClick={()=>{setTransactions(p=>p.filter(t=>t.id!==delId));setDelId(null);showToast("Dihapus","info");}}>Hapus</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── DASHBOARD ── */}
+        {tab==="dashboard"&&(
+          <div>
+            <div style={S.pageHeader}>
+              <h1 style={S.pageTitle}>📊 Dashboard</h1>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <select style={S.select} value={filterMonth} onChange={e=>setFilterMonth(+e.target.value)}>
+                  {MONTHS_ID.map((m,i)=><option key={i} value={i}>{m}</option>)}
+                </select>
+                <select style={S.select} value={filterYear} onChange={e=>setFilterYear(+e.target.value)}>
+                  {allYears.map(y=><option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Summary */}
+            <div className="card-grid-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:16}}>
+              <div style={{...S.card,borderTop:"3px solid #10B981"}}>
+                <div style={S.cardLabel}>💚 Total Pemasukan</div>
+                <div style={{...S.cardValue,color:"#10B981"}}>{formatRp(totalIncome)}</div>
+                <div style={S.cardSub}>{monthTx.filter(t=>t.type==="income").length} transaksi</div>
+              </div>
+              <div style={{...S.card,borderTop:"3px solid #F59E0B"}}>
+                <div style={S.cardLabel}>🔴 Total Pengeluaran</div>
+                <div style={{...S.cardValue,color:"#F59E0B"}}>{formatRp(totalExpense)}</div>
+                <div style={S.cardSub}>{monthTx.filter(t=>t.type==="expense").length} transaksi</div>
+              </div>
+              <div style={{...S.card,borderTop:`3px solid ${balance>=0?"#3B82F6":"#EF4444"}`}}>
+                <div style={S.cardLabel}>💰 Saldo Bersih</div>
+                <div style={{...S.cardValue,color:balance>=0?"#3B82F6":"#EF4444"}}>{balance>=0?"+":""}{formatRp(balance)}</div>
+                <div style={S.cardSub}>{balance>=0?"✅ Surplus":"⚠️ Defisit"}</div>
+              </div>
+            </div>
+
+            {/* Charts */}
+            <div className="card-grid-2" style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:14,marginBottom:16}}>
+              <div style={S.card}>
+                <h3 style={S.sectionTitle}>🔴 Pengeluaran per Kategori</h3>
+                <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
+                  <DonutChart data={expCatData} size={160}/>
+                  <div style={{flex:1,minWidth:140}}>
+                    {expCatData.length===0&&<p style={{color:"#64748B",fontSize:13}}>Belum ada pengeluaran.</p>}
+                    {expCatData.map(c=>(
+                      <div key={c.id} style={{display:"flex",alignItems:"center",gap:7,marginBottom:7}}>
+                        <div style={{width:9,height:9,borderRadius:"50%",background:c.color,flexShrink:0}}/>
+                        <span style={{fontSize:11,color:"#CBD5E1",flex:1}}>{c.label}</span>
+                        <span style={{fontSize:11,color:"#E2E8F0",fontWeight:700}}>{totalExpense>0?((c.value/totalExpense)*100).toFixed(1):0}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={S.card}>
+                <h3 style={S.sectionTitle}>💚 Pemasukan per Kategori</h3>
+                <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
+                  <DonutChart data={incCatData} size={160}/>
+                  <div style={{flex:1,minWidth:140}}>
+                    {incCatData.length===0&&<p style={{color:"#64748B",fontSize:13}}>Belum ada pemasukan.</p>}
+                    {incCatData.map(c=>(
+                      <div key={c.id} style={{display:"flex",alignItems:"center",gap:7,marginBottom:7}}>
+                        <div style={{width:9,height:9,borderRadius:"50%",background:c.color,flexShrink:0}}/>
+                        <span style={{fontSize:11,color:"#CBD5E1",flex:1}}>{c.label}</span>
+                        <span style={{fontSize:11,color:"#E2E8F0",fontWeight:700}}>{totalIncome>0?((c.value/totalIncome)*100).toFixed(1):0}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent */}
+            <div style={S.card}>
+              <h3 style={S.sectionTitle}>🕐 Transaksi Terakhir</h3>
+              {recent.length===0&&<p style={{color:"#64748B",fontSize:13,textAlign:"center",padding:20}}>Belum ada transaksi.</p>}
+              {recent.map(t=>{
+                const info=getCategoryInfo(t.category,t.type);
+                return (
+                  <div key={t.id} style={S.txRow}>
+                    <div style={{width:34,height:34,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,background:info.color+"22",border:`1px solid ${info.color}44`,flexShrink:0}}>
+                      {info.label.split(" ")[0]}
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:13,color:"#E2E8F0",fontWeight:500}}>{info.label.split(" ").slice(1).join(" ")}</div>
+                      <div style={{fontSize:11,color:"#64748B"}}>{t.description||"—"} · {new Date(t.date).toLocaleDateString("id-ID")}</div>
+                    </div>
+                    <div style={{fontSize:13,fontWeight:700,color:t.type==="income"?"#10B981":"#F87171"}}>{t.type==="income"?"+":"−"}{formatRp(t.amount)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── TAMBAH ── */}
+        {tab==="add"&&(
+          <div>
+            <div style={S.pageHeader}>
+              <h1 style={S.pageTitle}>{editId?"✏️ Edit Transaksi":"➕ Tambah Transaksi"}</h1>
+              {editId&&<button style={S.btnGhost} onClick={()=>{setEditId(null);setForm(f=>({...f,amount:"",description:"",date:today.toISOString().split("T")[0]}))}}>Batal Edit</button>}
+            </div>
+            <div style={{...S.card,maxWidth:540}}>
+              {/* Toggle */}
+              <div style={S.typeToggle}>
+                <button style={{...S.typeBtn,...(form.type==="income"?{background:"#064E3B",color:"#10B981"}:{})}}
+                  onClick={()=>setForm(f=>({...f,type:"income",category:CATEGORIES_INCOME[0].id}))}>
+                  💚 Pemasukan
+                </button>
+                <button style={{...S.typeBtn,...(form.type==="expense"?{background:"#451A03",color:"#F59E0B"}:{})}}
+                  onClick={()=>setForm(f=>({...f,type:"expense",category:CATEGORIES_EXPENSE[0].id}))}>
+                  🔴 Pengeluaran
+                </button>
+              </div>
+
+              <div style={S.formGroup}>
+                <label style={S.label}>Tanggal</label>
+                <input type="date" style={S.input} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Jumlah (Rp)</label>
+                <input type="number" placeholder="Contoh: 50000" style={S.input} value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))}/>
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Kategori</label>
+                <div style={S.catGrid}>
+                  {currentCats.map(c=>(
+                    <button key={c.id}
+                      style={{...S.catBtn,...(form.category===c.id?{background:c.color+"33",borderColor:c.color,color:"#E2E8F0"}:{})}}
+                      onClick={()=>setForm(f=>({...f,category:c.id}))}>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Deskripsi (opsional)</label>
+                <input type="text" placeholder="Contoh: Makan siang warung padang" style={S.input}
+                  value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}
+                  onKeyDown={e=>{if(e.key==="Enter")handleSubmit();}}/>
+              </div>
+              <button style={{...S.btnPrimary,width:"100%",background:form.type==="income"?"#059669":"#D97706"}} onClick={handleSubmit}>
+                {editId?"💾 Simpan Perubahan":"✅ Simpan Transaksi"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── RIWAYAT ── */}
+        {tab==="history"&&(
+          <div>
+            <div style={S.pageHeader}>
+              <h1 style={S.pageTitle}>📋 Riwayat Transaksi</h1>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <select style={S.select} value={filterMonth} onChange={e=>setFilterMonth(+e.target.value)}>
+                  {MONTHS_ID.map((m,i)=><option key={i} value={i}>{m}</option>)}
+                </select>
+                <select style={S.select} value={filterYear} onChange={e=>setFilterYear(+e.target.value)}>
+                  {allYears.map(y=><option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={S.card}>
+              {monthTx.length===0&&<p style={{color:"#64748B",textAlign:"center",padding:32,fontSize:14}}>Tidak ada transaksi di bulan ini.</p>}
+              {[...monthTx].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(t=>{
+                const info=getCategoryInfo(t.category,t.type);
+                return (
+                  <div key={t.id} style={{...S.txRow,gap:12}}>
+                    <div style={{width:36,height:36,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,background:info.color+"22",border:`1px solid ${info.color}44`,flexShrink:0}}>
+                      {info.label.split(" ")[0]}
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:13,color:"#E2E8F0",fontWeight:600}}>{info.label.split(" ").slice(1).join(" ")}</div>
+                      <div style={{fontSize:11,color:"#64748B"}}>{t.description||"—"} · {new Date(t.date).toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"})}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:13,fontWeight:700,color:t.type==="income"?"#10B981":"#F87171"}}>{t.type==="income"?"+":"−"}{formatRp(t.amount)}</div>
+                      <div style={{display:"flex",gap:4,marginTop:4,justifyContent:"flex-end"}}>
+                        <button style={S.btnIconEdit} onClick={()=>startEdit(t)}>✏️</button>
+                        <button style={S.btnIconDel} onClick={()=>setDelId(t.id)}>🗑️</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── LAPORAN ── */}
+        {tab==="report"&&(()=>{
+          const rTx=transactions.filter(t=>{const d=new Date(t.date);return d.getMonth()===reportMonth&&d.getFullYear()===reportYear;});
+          const rIn=rTx.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+          const rEx=rTx.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+          const rBal=rIn-rEx;
+          const rExpMap={},rIncMap={};
+          rTx.filter(t=>t.type==="expense").forEach(t=>{rExpMap[t.category]=(rExpMap[t.category]||0)+t.amount;});
+          rTx.filter(t=>t.type==="income").forEach(t=>{rIncMap[t.category]=(rIncMap[t.category]||0)+t.amount;});
+          const rExpData=Object.entries(rExpMap).map(([id,value])=>({id,value,...getCategoryInfo(id,"expense")})).sort((a,b)=>b.value-a.value);
+          const rIncData=Object.entries(rIncMap).map(([id,value])=>({id,value,...getCategoryInfo(id,"income")})).sort((a,b)=>b.value-a.value);
+          return (
+            <div>
+              <div style={S.pageHeader}>
+                <h1 style={S.pageTitle}>📄 Laporan Bulanan</h1>
+              </div>
+
+              <div style={{...S.card,maxWidth:560,marginBottom:20}}>
+                <h3 style={{...S.sectionTitle,marginBottom:14}}>Pilih Periode Laporan</h3>
+                <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                  <select style={{...S.select,flex:1}} value={reportMonth} onChange={e=>setReportMonth(+e.target.value)}>
+                    {MONTHS_ID.map((m,i)=><option key={i} value={i}>{m}</option>)}
+                  </select>
+                  <select style={{...S.select,flex:1}} value={reportYear} onChange={e=>setReportYear(+e.target.value)}>
+                    {allYears.map(y=><option key={y} value={y}>{y}</option>)}
+                  </select>
+                  <button style={{...S.btnPrimary,flexShrink:0,background:"#7C3AED"}}
+                    onClick={()=>generatePDFReport(transactions,reportMonth,reportYear)}>
+                    📥 Download PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div style={{...S.card,background:"#0D1F35",border:"1px solid #1E3A5F",marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
+                  <div>
+                    <h2 style={{color:"#E2E8F0",fontSize:17,fontWeight:700}}>Preview: {MONTHS_ID[reportMonth]} {reportYear}</h2>
+                    <p style={{color:"#64748B",fontSize:12,marginTop:2}}>{rTx.length} transaksi ditemukan</p>
+                  </div>
+                  <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:11,color:"#64748B"}}>Pemasukan</div>
+                      <div style={{fontSize:14,fontWeight:700,color:"#10B981"}}>{formatRp(rIn)}</div>
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:11,color:"#64748B"}}>Pengeluaran</div>
+                      <div style={{fontSize:14,fontWeight:700,color:"#F59E0B"}}>{formatRp(rEx)}</div>
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:11,color:"#64748B"}}>Saldo</div>
+                      <div style={{fontSize:14,fontWeight:700,color:rBal>=0?"#3B82F6":"#EF4444"}}>{rBal>=0?"+":""}{formatRp(rBal)}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card-grid-2" style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:14}}>
+                <div style={S.card}>
+                  <h3 style={S.sectionTitle}>🔴 Pengeluaran per Kategori</h3>
+                  <div style={{display:"flex",gap:14,alignItems:"center",flexWrap:"wrap"}}>
+                    <DonutChart data={rExpData} size={145}/>
+                    <div style={{flex:1}}>
+                      {rExpData.length===0&&<p style={{color:"#64748B",fontSize:12}}>Tidak ada data.</p>}
+                      {rExpData.map(c=>(
+                        <div key={c.id} style={{marginBottom:9}}>
+                          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#CBD5E1",marginBottom:3}}>
+                            <span>{c.label}</span>
+                            <span style={{fontWeight:700}}>{rEx>0?((c.value/rEx)*100).toFixed(1):0}%</span>
+                          </div>
+                          <div style={{height:6,background:"#1E293B",borderRadius:3}}>
+                            <div style={{height:6,width:`${rEx>0?(c.value/rEx)*100:0}%`,background:c.color,borderRadius:3}}/>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div style={S.card}>
+                  <h3 style={S.sectionTitle}>💚 Pemasukan per Kategori</h3>
+                  <div style={{display:"flex",gap:14,alignItems:"center",flexWrap:"wrap"}}>
+                    <DonutChart data={rIncData} size={145}/>
+                    <div style={{flex:1}}>
+                      {rIncData.length===0&&<p style={{color:"#64748B",fontSize:12}}>Tidak ada data.</p>}
+                      {rIncData.map(c=>(
+                        <div key={c.id} style={{marginBottom:9}}>
+                          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#CBD5E1",marginBottom:3}}>
+                            <span>{c.label}</span>
+                            <span style={{fontWeight:700}}>{rIn>0?((c.value/rIn)*100).toFixed(1):0}%</span>
+                          </div>
+                          <div style={{height:6,background:"#1E293B",borderRadius:3}}>
+                            <div style={{height:6,width:`${rIn>0?(c.value/rIn)*100:0}%`,background:c.color,borderRadius:3}}/>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
