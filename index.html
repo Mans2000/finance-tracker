@@ -452,81 +452,83 @@ function App(){
               </div>
             </div>
 
-       {/* Mutasi Rekening */}
-            {(()=>{
-              const sorted = [...monthTx].sort((a,b)=>new Date(a.date)-new Date(b.date));
-              let running = 0;
-              const rows = sorted.map(t=>{
-                if(t.type==="income") running+=t.amount;
-                else running-=t.amount;
-                return {...t, saldo: running};
-              }).reverse();
-              return (
-                <div style={S.card}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
-                    <h3 style={{...S.sectionTitle,marginBottom:0}}>🏦 Mutasi Rekening — {MONTHS_ID[filterMonth]} {filterYear}</h3>
-                    <div style={{fontSize:12,color:"#64748B"}}>{monthTx.length} transaksi</div>
-                  </div>
-                  {monthTx.length===0&&(
-                    <p style={{color:"#64748B",fontSize:13,textAlign:"center",padding:"28px 0"}}>Belum ada transaksi bulan ini.</p>
-                  )}
-                  {monthTx.length>0&&(
-                    <div style={{overflowX:"auto"}}>
-                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                        <thead>
-                          <tr style={{borderBottom:"2px solid #1E3A5F"}}>
-                            <th style={{padding:"8px 10px",textAlign:"left",color:"#64748B",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>TANGGAL</th>
-                            <th style={{padding:"8px 10px",textAlign:"left",color:"#64748B",fontWeight:600,fontSize:11}}>KETERANGAN</th>
-                            <th style={{padding:"8px 10px",textAlign:"left",color:"#64748B",fontWeight:600,fontSize:11}}>KATEGORI</th>
-                            <th style={{padding:"8px 10px",textAlign:"right",color:"#10B981",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>MASUK (Cr)</th>
-                            <th style={{padding:"8px 10px",textAlign:"right",color:"#F87171",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>KELUAR (Dr)</th>
-                            <th style={{padding:"8px 10px",textAlign:"right",color:"#94A3B8",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>SALDO</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rows.map((t,i)=>{
-                            const info=getCategoryInfo(t.category,t.type);
-                            const isIncome=t.type==="income";
-                            return (
-                              <tr key={t.id} style={{borderBottom:"1px solid #1E293B",background:i%2===0?"transparent":"#0D1B2A"}}>
-                                <td style={{padding:"10px 10px",color:"#94A3B8",fontSize:12,whiteSpace:"nowrap"}}>
-                                  {new Date(t.date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"})}
-                                </td>
-                                <td style={{padding:"10px 10px",color:"#E2E8F0",maxWidth:180}}>
-                                  <div style={{fontWeight:500}}>{t.description||"—"}</div>
-                                </td>
-                                <td style={{padding:"10px 10px"}}>
-                                  <span style={{background:info.color+"22",color:info.color,border:"1px solid "+info.color+"44",borderRadius:5,padding:"2px 7px",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>
-                                    {info.label}
-                                  </span>
-                                </td>
-                                <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:"#10B981",fontSize:13}}>
-                                  {isIncome ? formatRp(t.amount) : "—"}
-                                </td>
-                                <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:"#F87171",fontSize:13}}>
-                                  {!isIncome ? formatRp(t.amount) : "—"}
-                                </td>
-                                <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:t.saldo>=0?"#60A5FA":"#F87171",fontSize:13,whiteSpace:"nowrap"}}>
-                                  {t.saldo>=0?"":"-"}{formatRp(Math.abs(t.saldo))}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                        <tfoot>
-                          <tr style={{borderTop:"2px solid #1E3A5F",background:"#0D1B2A"}}>
-                            <td colSpan={3} style={{padding:"10px 10px",color:"#94A3B8",fontWeight:700,fontSize:12}}>TOTAL BULAN INI</td>
-                            <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:"#10B981",fontSize:13}}>{formatRp(totalIncome)}</td>
-                            <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:"#F87171",fontSize:13}}>{formatRp(totalExpense)}</td>
-                            <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:balance>=0?"#60A5FA":"#F87171",fontSize:13}}>{balance>=0?"":"-"}{formatRp(Math.abs(balance))}</td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+{/* Buku Kas */}
+{(()=>{
+  const sorted = [...monthTx].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  let running = 0;
+  const rows = sorted.map((t,i)=>{
+    if(t.type==="income") running+=t.amount;
+    else running-=t.amount;
+    return {...t, no:i+1, saldo: running};
+  });
+  return (
+    <div style={S.card}>
+      <div style={{textAlign:"center",marginBottom:14}}>
+        <div style={{fontSize:15,fontWeight:700,color:"#E2E8F0",letterSpacing:0.5}}>CATATAN BUKU KAS KELUAR – MASUK</div>
+        <div style={{fontSize:12,color:"#64748B",marginTop:3}}>Periode {MONTHS_ID[filterMonth]} {filterYear}</div>
+      </div>
+      {monthTx.length===0&&(
+        <p style={{color:"#64748B",fontSize:13,textAlign:"center",padding:"24px 0"}}>Belum ada transaksi bulan ini.</p>
+      )}
+      {monthTx.length>0&&(
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr style={{background:"#1E3A5F"}}>
+                <th style={{padding:"8px 8px",textAlign:"center",color:"#E2E8F0",fontWeight:700,border:"1px solid #2D4A6E",whiteSpace:"nowrap"}}>No</th>
+                <th style={{padding:"8px 8px",textAlign:"center",color:"#E2E8F0",fontWeight:700,border:"1px solid #2D4A6E",whiteSpace:"nowrap"}}>Tanggal</th>
+                <th style={{padding:"8px 8px",textAlign:"center",color:"#E2E8F0",fontWeight:700,border:"1px solid #2D4A6E"}}>Keterangan / Uraian</th>
+                <th style={{padding:"8px 8px",textAlign:"center",color:"#E2E8F0",fontWeight:700,border:"1px solid #2D4A6E",whiteSpace:"nowrap"}}>Kategori</th>
+                <th style={{padding:"8px 8px",textAlign:"center",color:"#10B981",fontWeight:700,border:"1px solid #2D4A6E",whiteSpace:"nowrap"}}>Debit (Masuk)</th>
+                <th style={{padding:"8px 8px",textAlign:"center",color:"#F87171",fontWeight:700,border:"1px solid #2D4A6E",whiteSpace:"nowrap"}}>Kredit (Keluar)</th>
+                <th style={{padding:"8px 8px",textAlign:"center",color:"#60A5FA",fontWeight:700,border:"1px solid #2D4A6E",whiteSpace:"nowrap"}}>Saldo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((t,i)=>{
+                const info=getCategoryInfo(t.category,t.type);
+                const isIncome=t.type==="income";
+                return (
+                  <tr key={t.id} style={{background:i%2===0?"transparent":"#0D1B2A"}}>
+                    <td style={{padding:"8px 8px",textAlign:"center",color:"#94A3B8",border:"1px solid #1E293B"}}>{t.no}</td>
+                    <td style={{padding:"8px 8px",textAlign:"center",color:"#CBD5E1",border:"1px solid #1E293B",whiteSpace:"nowrap"}}>
+                      {new Date(t.date).toLocaleDateString("id-ID",{day:"2-digit",month:"2-digit",year:"numeric"})}
+                    </td>
+                    <td style={{padding:"8px 8px",color:"#E2E8F0",border:"1px solid #1E293B"}}>
+                      {t.description||info.label}
+                    </td>
+                    <td style={{padding:"8px 8px",textAlign:"center",border:"1px solid #1E293B"}}>
+                      <span style={{background:info.color+"22",color:info.color,border:"1px solid "+info.color+"44",borderRadius:4,padding:"2px 6px",fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>
+                        {info.label}
+                      </span>
+                    </td>
+                    <td style={{padding:"8px 8px",textAlign:"right",fontWeight:700,color:"#10B981",border:"1px solid #1E293B",whiteSpace:"nowrap"}}>
+                      {isIncome ? formatRp(t.amount) : ""}
+                    </td>
+                    <td style={{padding:"8px 8px",textAlign:"right",fontWeight:700,color:"#F87171",border:"1px solid #1E293B",whiteSpace:"nowrap"}}>
+                      {!isIncome ? formatRp(t.amount) : ""}
+                    </td>
+                    <td style={{padding:"8px 8px",textAlign:"right",fontWeight:700,color:t.saldo>=0?"#60A5FA":"#F87171",border:"1px solid #1E293B",whiteSpace:"nowrap"}}>
+                      {formatRp(Math.abs(t.saldo))}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{background:"#1E3A5F"}}>
+                <td colSpan={4} style={{padding:"8px 10px",textAlign:"center",color:"#E2E8F0",fontWeight:700,border:"1px solid #2D4A6E",fontSize:12}}>TOTAL</td>
+                <td style={{padding:"8px 10px",textAlign:"right",fontWeight:700,color:"#10B981",border:"1px solid #2D4A6E",whiteSpace:"nowrap"}}>{formatRp(totalIncome)}</td>
+                <td style={{padding:"8px 10px",textAlign:"right",fontWeight:700,color:"#F87171",border:"1px solid #2D4A6E",whiteSpace:"nowrap"}}>{formatRp(totalExpense)}</td>
+                <td style={{padding:"8px 10px",textAlign:"right",fontWeight:700,color:balance>=0?"#60A5FA":"#F87171",border:"1px solid #2D4A6E",whiteSpace:"nowrap"}}>{formatRp(Math.abs(balance))}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+})()}
           </div>
         )}
 
