@@ -452,79 +452,81 @@ function App(){
               </div>
             </div>
 
-            {/* Recent */}
-            <div style={S.card}>
-              <h3 style={S.sectionTitle}>🕐 Transaksi Terakhir</h3>
-              {recent.length===0&&<p style={{color:"#64748B",fontSize:13,textAlign:"center",padding:20}}>Belum ada transaksi.</p>}
-              {recent.map(t=>{
-                const info=getCategoryInfo(t.category,t.type);
-                return (
-                  <div key={t.id} style={S.txRow}>
-                    <div style={{width:34,height:34,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,background:info.color+"22",border:`1px solid ${info.color}44`,flexShrink:0}}>
-                      {info.label.split(" ")[0]}
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:13,color:"#E2E8F0",fontWeight:500}}>{info.label.split(" ").slice(1).join(" ")}</div>
-                      <div style={{fontSize:11,color:"#64748B"}}>{t.description||"—"} · {new Date(t.date).toLocaleDateString("id-ID")}</div>
-                    </div>
-                    <div style={{fontSize:13,fontWeight:700,color:t.type==="income"?"#10B981":"#F87171"}}>{t.type==="income"?"+":"−"}{formatRp(t.amount)}</div>
+       {/* Mutasi Rekening */}
+            {(()=>{
+              const sorted = [...monthTx].sort((a,b)=>new Date(a.date)-new Date(b.date));
+              let running = 0;
+              const rows = sorted.map(t=>{
+                if(t.type==="income") running+=t.amount;
+                else running-=t.amount;
+                return {...t, saldo: running};
+              }).reverse();
+              return (
+                <div style={S.card}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
+                    <h3 style={{...S.sectionTitle,marginBottom:0}}>🏦 Mutasi Rekening — {MONTHS_ID[filterMonth]} {filterYear}</h3>
+                    <div style={{fontSize:12,color:"#64748B"}}>{monthTx.length} transaksi</div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── TAMBAH ── */}
-        {tab==="add"&&(
-          <div>
-            <div style={S.pageHeader}>
-              <h1 style={S.pageTitle}>{editId?"✏️ Edit Transaksi":"➕ Tambah Transaksi"}</h1>
-              {editId&&<button style={S.btnGhost} onClick={()=>{setEditId(null);setForm(f=>({...f,amount:"",description:"",date:today.toISOString().split("T")[0]}))}}>Batal Edit</button>}
-            </div>
-            <div style={{...S.card,maxWidth:540}}>
-              {/* Toggle */}
-              <div style={S.typeToggle}>
-                <button style={{...S.typeBtn,...(form.type==="income"?{background:"#064E3B",color:"#10B981"}:{})}}
-                  onClick={()=>setForm(f=>({...f,type:"income",category:CATEGORIES_INCOME[0].id}))}>
-                  💚 Pemasukan
-                </button>
-                <button style={{...S.typeBtn,...(form.type==="expense"?{background:"#451A03",color:"#F59E0B"}:{})}}
-                  onClick={()=>setForm(f=>({...f,type:"expense",category:CATEGORIES_EXPENSE[0].id}))}>
-                  🔴 Pengeluaran
-                </button>
-              </div>
-
-              <div style={S.formGroup}>
-                <label style={S.label}>Tanggal</label>
-                <input type="date" style={S.input} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
-              </div>
-              <div style={S.formGroup}>
-                <label style={S.label}>Jumlah (Rp)</label>
-                <input type="number" placeholder="Contoh: 50000" style={S.input} value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))}/>
-              </div>
-              <div style={S.formGroup}>
-                <label style={S.label}>Kategori</label>
-                <div style={S.catGrid}>
-                  {currentCats.map(c=>(
-                    <button key={c.id}
-                      style={{...S.catBtn,...(form.category===c.id?{background:c.color+"33",borderColor:c.color,color:"#E2E8F0"}:{})}}
-                      onClick={()=>setForm(f=>({...f,category:c.id}))}>
-                      {c.label}
-                    </button>
-                  ))}
+                  {monthTx.length===0&&(
+                    <p style={{color:"#64748B",fontSize:13,textAlign:"center",padding:"28px 0"}}>Belum ada transaksi bulan ini.</p>
+                  )}
+                  {monthTx.length>0&&(
+                    <div style={{overflowX:"auto"}}>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                        <thead>
+                          <tr style={{borderBottom:"2px solid #1E3A5F"}}>
+                            <th style={{padding:"8px 10px",textAlign:"left",color:"#64748B",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>TANGGAL</th>
+                            <th style={{padding:"8px 10px",textAlign:"left",color:"#64748B",fontWeight:600,fontSize:11}}>KETERANGAN</th>
+                            <th style={{padding:"8px 10px",textAlign:"left",color:"#64748B",fontWeight:600,fontSize:11}}>KATEGORI</th>
+                            <th style={{padding:"8px 10px",textAlign:"right",color:"#10B981",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>MASUK (Cr)</th>
+                            <th style={{padding:"8px 10px",textAlign:"right",color:"#F87171",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>KELUAR (Dr)</th>
+                            <th style={{padding:"8px 10px",textAlign:"right",color:"#94A3B8",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>SALDO</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((t,i)=>{
+                            const info=getCategoryInfo(t.category,t.type);
+                            const isIncome=t.type==="income";
+                            return (
+                              <tr key={t.id} style={{borderBottom:"1px solid #1E293B",background:i%2===0?"transparent":"#0D1B2A"}}>
+                                <td style={{padding:"10px 10px",color:"#94A3B8",fontSize:12,whiteSpace:"nowrap"}}>
+                                  {new Date(t.date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"})}
+                                </td>
+                                <td style={{padding:"10px 10px",color:"#E2E8F0",maxWidth:180}}>
+                                  <div style={{fontWeight:500}}>{t.description||"—"}</div>
+                                </td>
+                                <td style={{padding:"10px 10px"}}>
+                                  <span style={{background:info.color+"22",color:info.color,border:"1px solid "+info.color+"44",borderRadius:5,padding:"2px 7px",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>
+                                    {info.label}
+                                  </span>
+                                </td>
+                                <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:"#10B981",fontSize:13}}>
+                                  {isIncome ? formatRp(t.amount) : "—"}
+                                </td>
+                                <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:"#F87171",fontSize:13}}>
+                                  {!isIncome ? formatRp(t.amount) : "—"}
+                                </td>
+                                <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:t.saldo>=0?"#60A5FA":"#F87171",fontSize:13,whiteSpace:"nowrap"}}>
+                                  {t.saldo>=0?"":"-"}{formatRp(Math.abs(t.saldo))}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{borderTop:"2px solid #1E3A5F",background:"#0D1B2A"}}>
+                            <td colSpan={3} style={{padding:"10px 10px",color:"#94A3B8",fontWeight:700,fontSize:12}}>TOTAL BULAN INI</td>
+                            <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:"#10B981",fontSize:13}}>{formatRp(totalIncome)}</td>
+                            <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:"#F87171",fontSize:13}}>{formatRp(totalExpense)}</td>
+                            <td style={{padding:"10px 10px",textAlign:"right",fontWeight:700,color:balance>=0?"#60A5FA":"#F87171",fontSize:13}}>{balance>=0?"":"-"}{formatRp(Math.abs(balance))}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div style={S.formGroup}>
-                <label style={S.label}>Deskripsi (opsional)</label>
-                <input type="text" placeholder="Contoh: Makan siang warung padang" style={S.input}
-                  value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}
-                  onKeyDown={e=>{if(e.key==="Enter")handleSubmit();}}/>
-              </div>
-              <button style={{...S.btnPrimary,width:"100%",background:form.type==="income"?"#059669":"#D97706"}} onClick={handleSubmit}>
-                {editId?"💾 Simpan Perubahan":"✅ Simpan Transaksi"}
-              </button>
-            </div>
+              );
+            })()}
           </div>
         )}
 
