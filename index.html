@@ -8,6 +8,7 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel ="stylesheet" href="./styles/style.css">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Inter',system-ui,sans-serif; background:#0A1628; color:#E2E8F0; }
@@ -29,26 +30,6 @@
   }
 </style>
 </head>
-
-<script type="module">
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyC1Ovl4V_2u0msZ8_ggVgecyTrqgcB7cIw",
-  authDomain: "finance-tracker-295f2.firebaseapp.com",
-  projectId: "finance-tracker-295f2",
-  storageBucket: "finance-tracker-295f2.firebasestorage.app",
-  messagingSenderId: "140931981914",
-  appId: "1:140931981914:web:a45b3f143f0d4fe78f6e63"
-};
-
-const app = initializeApp(firebaseConfig);
-
-console.log("Firebase connected");
-
-</script>
- 
 <body>
 <div id="root"></div>
 <script type="text/babel">
